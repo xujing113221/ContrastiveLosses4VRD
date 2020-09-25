@@ -24,24 +24,24 @@ class reldn_head(nn.Module):
         super().__init__()
         dim_in_final = dim_in // 3
         self.dim_in_final = dim_in_final
-            
+
         if cfg.MODEL.USE_BG:
             num_prd_classes = cfg.MODEL.NUM_PRD_CLASSES + 1
         else:
             num_prd_classes = cfg.MODEL.NUM_PRD_CLASSES
-            
+
         if cfg.MODEL.RUN_BASELINE:
             # only run it on testing mode
             self.freq_bias = FrequencyBias(cfg.TEST.DATASETS[0])
             return
-        
+
         self.prd_cls_feats = nn.Sequential(
             nn.Linear(dim_in, dim_in // 2),
             nn.LeakyReLU(0.1),
             nn.Linear(dim_in // 2, dim_in_final),
             nn.LeakyReLU(0.1))
         self.prd_cls_scores = nn.Linear(dim_in_final, num_prd_classes)
-        
+
         if cfg.MODEL.USE_FREQ_BIAS:
             # Assume we are training/testing on only one dataset
             if len(cfg.TRAIN.DATASETS):
@@ -56,13 +56,13 @@ class reldn_head(nn.Module):
                 nn.Linear(64, 64),
                 nn.LeakyReLU(0.1))
             self.spt_cls_scores = nn.Linear(64, num_prd_classes)
-        
+
         if cfg.MODEL.ADD_SO_SCORES:
             self.prd_sbj_scores = nn.Linear(dim_in_final, num_prd_classes)
             self.prd_obj_scores = nn.Linear(dim_in_final, num_prd_classes)
-        
+
         self._init_weights()
-        
+
     def _init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
@@ -88,18 +88,18 @@ class reldn_head(nn.Module):
             prd_cls_scores = self.freq_bias.rel_index_with_labels(torch.stack((sbj_labels, obj_labels), 1))
             prd_cls_scores = F.softmax(prd_cls_scores, dim=1)
             return prd_cls_scores, prd_cls_scores, None, prd_cls_scores, None, None
-        
+
         if spo_feat.dim() == 4:
             spo_feat = spo_feat.squeeze(3).squeeze(2)
         prd_cls_feats = self.prd_cls_feats(spo_feat)
         prd_vis_scores = self.prd_cls_scores(prd_cls_feats)
         sbj_cls_scores = None
         obj_cls_scores = None
-            
+
         if cfg.MODEL.USE_FREQ_BIAS:
             assert sbj_labels is not None and obj_labels is not None
             prd_bias_scores = self.freq_bias.rel_index_with_labels(torch.stack((sbj_labels, obj_labels), 1))
-        
+
         if cfg.MODEL.USE_SPATIAL_FEAT:
             assert spt_feat is not None
             device_id = spo_feat.get_device()
@@ -108,11 +108,11 @@ class reldn_head(nn.Module):
             prd_spt_scores = self.spt_cls_scores(spt_cls_feats)
         else:
             prd_spt_scores = None
-            
+
         if cfg.MODEL.ADD_SO_SCORES:
             prd_sbj_scores = self.prd_sbj_scores(sbj_feat)
             prd_obj_scores = self.prd_obj_scores(obj_feat)
-            
+
         if cfg.MODEL.ADD_SCORES_ALL:
             ttl_cls_scores = torch.tensor(prd_vis_scores)
             if cfg.MODEL.USE_FREQ_BIAS:
@@ -123,7 +123,7 @@ class reldn_head(nn.Module):
                 ttl_cls_scores += prd_sbj_scores + prd_obj_scores
         else:
             ttl_cls_scores = None
-            
+
         if not self.training:
             prd_vis_scores = F.softmax(prd_vis_scores, dim=1)
             if cfg.MODEL.USE_FREQ_BIAS:
@@ -132,8 +132,9 @@ class reldn_head(nn.Module):
                 prd_spt_scores = F.softmax(prd_spt_scores, dim=1)
             if cfg.MODEL.ADD_SCORES_ALL:
                 ttl_cls_scores = F.softmax(ttl_cls_scores, dim=1)
-        
+
         return prd_vis_scores, prd_bias_scores, prd_spt_scores, ttl_cls_scores, sbj_cls_scores, obj_cls_scores
+# _, prd_bias_scores_sbj_pos, _, ttl_cls_scores_sbj_pos, _, _, prd_cls_feats
 
 
 def reldn_losses(prd_cls_scores, prd_labels_int32, fg_only=False):
@@ -158,7 +159,7 @@ def reldn_contrastive_losses(prd_scores_sbj_pos, prd_scores_obj_pos, rel_ret):
     obj_pair_pos_batch, obj_pair_neg_batch, obj_target = split_pos_neg_spo_agnostic(
         prd_probs_obj_pos, rel_ret['binary_labels_obj_pos_int32'], rel_ret['inds_unique_obj_pos'], rel_ret['inds_reverse_obj_pos'])
     obj_contrastive_loss = F.margin_ranking_loss(obj_pair_pos_batch, obj_pair_neg_batch, obj_target, margin=cfg.MODEL.NODE_CONTRASTIVE_MARGIN)
-    
+
     return sbj_contrastive_loss, obj_contrastive_loss
 
 
@@ -177,7 +178,7 @@ def reldn_so_contrastive_losses(prd_scores_sbj_pos, prd_scores_obj_pos, rel_ret)
         rel_ret['binary_labels_obj_pos_int32'], rel_ret['inds_unique_obj_pos'], rel_ret['inds_reverse_obj_pos'],
         rel_ret['sbj_labels_obj_pos_int32'], rel_ret['obj_labels_obj_pos_int32'], 'o')
     obj_so_contrastive_loss = F.margin_ranking_loss(obj_pair_pos_batch, obj_pair_neg_batch, obj_target, margin=cfg.MODEL.NODE_CONTRASTIVE_SO_AWARE_MARGIN)
-    
+
     return sbj_so_contrastive_loss, obj_so_contrastive_loss
 
 
@@ -200,7 +201,7 @@ def reldn_p_contrastive_losses(prd_scores_sbj_pos, prd_scores_obj_pos, prd_bias_
         rel_ret['binary_labels_obj_pos_int32'], rel_ret['inds_unique_obj_pos'], rel_ret['inds_reverse_obj_pos'],
         rel_ret['prd_labels_obj_pos_int32'])
     obj_p_contrastive_loss = F.margin_ranking_loss(obj_pair_pos_batch, obj_pair_neg_batch, obj_target, margin=cfg.MODEL.NODE_CONTRASTIVE_P_AWARE_MARGIN)
-    
+
     return sbj_p_contrastive_loss, obj_p_contrastive_loss
 
 
@@ -226,7 +227,7 @@ def split_pos_neg_spo_agnostic(prd_probs, binary_labels_pos, inds_unique_pos, in
         pair_neg_batch = torch.cat((pair_neg_batch, max_prd_pos_probs_i_pair_neg.unsqueeze(0)))
 
     target = torch.ones_like(pair_pos_batch).cuda(device_id)
-        
+
     return pair_pos_batch, pair_neg_batch, target
 
 
@@ -341,5 +342,5 @@ def split_pos_neg_p_aware(prd_probs, prd_bias_probs, binary_labels_pos, inds_uni
             pair_neg_batch = torch.cat((pair_neg_batch, max_prd_pos_probs_i_neg_j.unsqueeze(0)))
 
     target = torch.ones_like(pair_pos_batch).cuda(device_id)
-        
+
     return pair_pos_batch, pair_neg_batch, target

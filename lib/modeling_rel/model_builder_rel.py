@@ -71,7 +71,7 @@ def check_inference(net_func):
                     return net_func(self, *args, **kwargs)
         else:
             raise ValueError('You should call this function only on inference.'
-                              'Set the network in inference mode by net.eval().')
+                             'Set the network in inference mode by net.eval().')
 
     return wrapper
 
@@ -111,23 +111,23 @@ class Generalized_RCNN(nn.Module):
             self.RPN.dim_out, self.roi_feature_transform, self.Conv_Body.spatial_scale)
         self.Box_Outs = fast_rcnn_heads.fast_rcnn_outputs(
             self.Box_Head.dim_out)
-            
+
         self.Prd_RCNN = copy.deepcopy(self)
         del self.Prd_RCNN.RPN
         del self.Prd_RCNN.Box_Outs
-            
-         # rel pyramid connection
+
+        # rel pyramid connection
         if cfg.MODEL.USE_REL_PYRAMID:
             assert cfg.FPN.FPN_ON
             self.RelPyramid = rel_pyramid_module.rel_pyramid_module(self.num_roi_levels)
-        
+
         # RelPN
         self.RelPN = relpn_heads.generic_relpn_outputs()
         # RelDN
         self.RelDN = reldn_heads.reldn_head(self.Box_Head.dim_out * 3)
 
         self._init_modules()
-        
+
         # initialize S/O branches AFTER init_weigths so that weights can be automatically copied
         if cfg.MODEL.ADD_SO_SCORES:
             self.S_Head = copy.deepcopy(self.Box_Head)
@@ -144,25 +144,25 @@ class Generalized_RCNN(nn.Module):
             resnet_utils.load_pretrained_imagenet_weights(self)
             for p in self.Conv_Body.parameters():
                 p.requires_grad = False
-                
+
         if cfg.RESNETS.VRD_PRETRAINED_WEIGHTS != '':
             self.load_detector_weights(cfg.RESNETS.VRD_PRETRAINED_WEIGHTS)
         if cfg.VGG16.VRD_PRETRAINED_WEIGHTS != '':
             self.load_detector_weights(cfg.VGG16.VRD_PRETRAINED_WEIGHTS)
-            
+
         if cfg.RESNETS.VG_PRETRAINED_WEIGHTS != '':
             self.load_detector_weights(cfg.RESNETS.VG_PRETRAINED_WEIGHTS)
         if cfg.VGG16.VG_PRETRAINED_WEIGHTS != '':
             self.load_detector_weights(cfg.VGG16.VG_PRETRAINED_WEIGHTS)
-            
+
         if cfg.RESNETS.OI_REL_PRETRAINED_WEIGHTS != '':
             self.load_detector_weights(cfg.RESNETS.OI_REL_PRETRAINED_WEIGHTS)
         if cfg.VGG16.OI_REL_PRETRAINED_WEIGHTS != '':
             self.load_detector_weights(cfg.VGG16.OI_REL_PRETRAINED_WEIGHTS)
 
         if cfg.RESNETS.VRD_PRD_PRETRAINED_WEIGHTS != '' or cfg.VGG16.VRD_PRD_PRETRAINED_WEIGHTS != '' or \
-            cfg.RESNETS.VG_PRD_PRETRAINED_WEIGHTS != '' or cfg.VGG16.VG_PRD_PRETRAINED_WEIGHTS != '' or \
-            cfg.RESNETS.OI_REL_PRD_PRETRAINED_WEIGHTS != '' or cfg.VGG16.OI_REL_PRD_PRETRAINED_WEIGHTS != '':
+                cfg.RESNETS.VG_PRD_PRETRAINED_WEIGHTS != '' or cfg.VGG16.VG_PRD_PRETRAINED_WEIGHTS != '' or \
+                cfg.RESNETS.OI_REL_PRD_PRETRAINED_WEIGHTS != '' or cfg.VGG16.OI_REL_PRD_PRETRAINED_WEIGHTS != '':
             if cfg.RESNETS.VRD_PRD_PRETRAINED_WEIGHTS != '':
                 logger.info("loading prd pretrained weights from %s", cfg.RESNETS.VRD_PRD_PRETRAINED_WEIGHTS)
                 checkpoint = torch.load(cfg.RESNETS.VRD_PRD_PRETRAINED_WEIGHTS, map_location=lambda storage, loc: storage)
@@ -211,7 +211,7 @@ class Generalized_RCNN(nn.Module):
                     p.requires_grad = False
                 for p in self.Box_Outs.parameters():
                     p.requires_grad = False
-                    
+
         if cfg.RESNETS.REL_PRETRAINED_WEIGHTS != '':
             logger.info("loading rel pretrained weights from %s", cfg.RESNETS.REL_PRETRAINED_WEIGHTS)
             checkpoint = torch.load(cfg.RESNETS.REL_PRETRAINED_WEIGHTS, map_location=lambda storage, loc: storage)
@@ -244,7 +244,7 @@ class Generalized_RCNN(nn.Module):
             if 'RelDN.spt_cls_scores.bias' in reldn_state_dict:
                 del reldn_state_dict['RelDN.spt_cls_scores.bias']
             net_utils_rel.load_ckpt_rel(self.RelDN, reldn_state_dict)
-            
+
         # By Ji on 05/11/2019
         if cfg.RESNETS.REL_RCNN_PRETRAINED_WEIGHTS != '':
             logger.info("loading rel_rcnn pretrained weights from %s", cfg.RESNETS.REL_RCNN_PRETRAINED_WEIGHTS)
@@ -256,7 +256,7 @@ class Generalized_RCNN(nn.Module):
             for p in to_be_deleted:
                 del checkpoint['model'][p]
             net_utils_rel.load_ckpt_rel(self.Prd_RCNN, checkpoint['model'])
-    
+
     def load_detector_weights(self, weight_name):
         logger.info("loading pretrained weights from %s", weight_name)
         checkpoint = torch.load(weight_name, map_location=lambda storage, loc: storage)
@@ -312,7 +312,7 @@ class Generalized_RCNN(nn.Module):
         else:
             box_feat = self.Box_Head(blob_conv, rpn_ret, use_relu=True)
         cls_score, bbox_pred = self.Box_Outs(box_feat)
-        
+
         # now go through the predicate branch
         use_relu = False if cfg.MODEL.NO_FC7_RELU else True
         if self.training:
@@ -438,7 +438,7 @@ class Generalized_RCNN(nn.Module):
         else:
             sbj_labels = None
             obj_labels = None
-        
+
         # prd_scores is the visual scores. See reldn_heads.py
         prd_scores, prd_bias_scores, prd_spt_scores, ttl_cls_scores, sbj_cls_scores, obj_cls_scores = \
             self.RelDN(spo_feat, spt_feat, sbj_labels, obj_labels, sbj_feat, obj_feat)
@@ -466,7 +466,7 @@ class Generalized_RCNN(nn.Module):
             return_dict['losses']['loss_cls'] = loss_cls
             return_dict['losses']['loss_bbox'] = loss_bbox
             return_dict['metrics']['accuracy_cls'] = accuracy_cls
-            
+
             if cfg.MODEL.USE_FREQ_BIAS and not cfg.MODEL.ADD_SCORES_ALL:
                 loss_cls_bias, accuracy_cls_bias = reldn_heads.reldn_losses(
                     prd_bias_scores, rel_ret['all_prd_labels_int32'])
@@ -501,7 +501,7 @@ class Generalized_RCNN(nn.Module):
                 else:
                     sbj_labels_sbj_pos_fg = None
                     obj_labels_sbj_pos_fg = None
-                _, prd_bias_scores_sbj_pos, _, ttl_cls_scores_sbj_pos, _, _, prd_cls_feats = \
+                _, prd_bias_scores_sbj_pos, _, ttl_cls_scores_sbj_pos, _, prd_cls_feats = \
                     self.RelDN(spo_feat_sbj_pos, spt_feat_sbj_pos, sbj_labels_sbj_pos_fg, obj_labels_sbj_pos_fg, sbj_feat_sbj_pos, obj_feat_sbj_pos)
                 # obj
                 rel_feat_obj_pos = self.Prd_RCNN.Box_Head(blob_conv_prd, rel_ret, rois_name='rel_rois_obj_pos', use_relu=use_relu)
@@ -533,7 +533,7 @@ class Generalized_RCNN(nn.Module):
                         ttl_cls_scores_sbj_pos, ttl_cls_scores_obj_pos, prd_bias_scores_sbj_pos, prd_bias_scores_obj_pos, rel_ret)
                     return_dict['losses']['loss_p_contrastive_sbj'] = loss_p_contrastive_sbj * cfg.MODEL.NODE_CONTRASTIVE_P_AWARE_WEIGHT
                     return_dict['losses']['loss_p_contrastive_obj'] = loss_p_contrastive_obj * cfg.MODEL.NODE_CONTRASTIVE_P_AWARE_WEIGHT
-                
+
             # pytorch0.4 bug on gathering scalar(0-dim) tensors
             for k, v in return_dict['losses'].items():
                 return_dict['losses'][k] = v.unsqueeze(0)
@@ -559,12 +559,12 @@ class Generalized_RCNN(nn.Module):
                 return_dict['blob_conv_prd'] = blob_conv_prd
 
         return return_dict
-    
+
     def get_roi_inds(self, det_labels, lbls):
         lbl_set = np.array(lbls)
         inds = np.where(np.isin(det_labels, lbl_set))[0]
         return inds
-    
+
     def prepare_det_rois(self, rois, cls_scores, bbox_pred, im_info, score_thresh=cfg.TEST.SCORE_THRESH):
         im_info = im_info.data.cpu().numpy()
         # NOTE: 'rois' is numpy array while
@@ -572,9 +572,9 @@ class Generalized_RCNN(nn.Module):
         scores = cls_scores.data.cpu().numpy().squeeze()
         # Apply bounding-box regression deltas
         box_deltas = bbox_pred.data.cpu().numpy().squeeze()
-        
+
         assert rois.shape[0] == scores.shape[0] == box_deltas.shape[0]
-        
+
         det_rois = np.empty((0, 5), dtype=np.float32)
         det_labels = np.empty((0), dtype=np.float32)
         det_scores = np.empty((0), dtype=np.float32)
@@ -592,15 +592,15 @@ class Generalized_RCNN(nn.Module):
 
             im_scores, im_boxes = self.get_det_boxes(im_boxes, im_scores, im_box_deltas, im_info[im_i][:2] / im_info[im_i][2])
             im_scores, im_boxes, im_labels = self.box_results_with_nms_and_limit(im_scores, im_boxes, score_thresh)
-            
+
             batch_inds = im_i * np.ones(
                 (im_boxes.shape[0], 1), dtype=np.float32)
-            
+
             im_det_rois = np.hstack((batch_inds, im_boxes * im_info[im_i, 2]))
             det_rois = np.append(det_rois, im_det_rois, axis=0)
             det_labels = np.append(det_labels, im_labels, axis=0)
             det_scores = np.append(det_scores, im_scores, axis=0)
-        
+
         return det_rois, det_labels, det_scores
 
     def get_det_boxes(self, boxes, scores, box_deltas, h_and_w):
@@ -612,7 +612,7 @@ class Generalized_RCNN(nn.Module):
             if cfg.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
                 # (legacy) Optionally normalize targets by a precomputed mean and stdev
                 box_deltas = box_deltas.view(-1, 4) * cfg.TRAIN.BBOX_NORMALIZE_STDS \
-                             + cfg.TRAIN.BBOX_NORMALIZE_MEANS
+                    + cfg.TRAIN.BBOX_NORMALIZE_MEANS
             pred_boxes = box_utils.bbox_transform(boxes, box_deltas, cfg.MODEL.BBOX_REG_WEIGHTS)
             pred_boxes = box_utils.clip_tiled_boxes(pred_boxes, h_and_w)
             if cfg.MODEL.CLS_AGNOSTIC_BBOX_REG:
@@ -625,9 +625,9 @@ class Generalized_RCNN(nn.Module):
             # Map scores and predictions back to the original set of boxes
             scores = scores[inv_index, :]
             pred_boxes = pred_boxes[inv_index, :]
-            
+
         return scores, pred_boxes
-    
+
     def box_results_with_nms_and_limit(self, scores, boxes, score_thresh=cfg.TEST.SCORE_THRESH):
         num_classes = cfg.MODEL.NUM_CLASSES
         cls_boxes = [[] for _ in range(num_classes)]
