@@ -20,4 +20,5 @@ data
 detection_models
 Outputs
 trained_models
-.vscode/
+.vscode
+.vscode/settings.json

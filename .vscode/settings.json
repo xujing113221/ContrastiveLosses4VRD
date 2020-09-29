@@ -1,3 +1,4 @@
 {
-    "python.pythonPath": "/home/xujing/miniconda3/envs/cl4vrd/bin/python"
+    "python.pythonPath": "/home/xujing/miniconda3/envs/cl4vrd/bin/python",
+    "python.envFile": "${workspaceFolder}/.vscode/.env"
 }
